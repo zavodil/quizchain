@@ -34,23 +34,4 @@ impl QuizChain {
     pub(crate) fn get_hash(text: String) -> String {
         format!("{:x}", Sha256::digest(text.as_bytes()))
     }
-
-    /*
-    pub fn pub_get_hash(&self, text: String) -> String { // TODO remove
-        //env::sha256(text.as_bytes())
-        //Sha256::digest(text.as_bytes())
-        format!("{:x}", Sha256::digest(text.as_bytes()))
-    }
-
-    pub fn pub_add_hash(&self, hash: String, text: String) -> String { // TODO remove
-        //env::sha256(text.as_bytes())
-        //Sha256::digest(text.as_bytes())
-        let query = format!("{}{}", hash, text);
-        format!("{:x}", Sha256::digest(query.as_bytes()))
-    }
-     */
-
-    /*pub fn pub_add_hash(&self, hash: Vec<u8>, text: String) -> Vec<u8> { // TODO remove
-        env::sha256(hash + text.as_bytes())
-    }*/
 }
