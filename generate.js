@@ -4,10 +4,12 @@ const CryptoJS = require('crypto-js');
 const secret = '77777';
 let m1 = getHash(secret);
 console.log(m1);
-let m2 = getHash(m1 + 'o2' + secret);
+let m2 = getHash(m1 + 'осень');
 console.log(m2);
-let m3 = getHash(m2 + 'o22' + secret);
+let m3 = getHash(m2 + '2' + '4' + '6');
 console.log(m3);
+let m4 = getHash(m3 + 'вашингтон');
+console.log(m4);
 
 /*
 816e2845d395e7703abac2dcbf9d54e39236fd39133362bf7ad3fce70dd7d78e

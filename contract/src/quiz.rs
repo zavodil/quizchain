@@ -122,12 +122,42 @@ impl QuizChain {
 
         if let Some(mut quiz) = self.quizzes.get(&quiz_id) {
             QuizChain::assert_current_user(&quiz.owner_id);
+            assert!(quiz.revealed_answers.is_none(), "Answers were already revealed");
             assert_eq!(quiz.status, QuizStatus::Finished, "Quiz is not finished");
             assert_eq!(quiz.total_questions, revealed_answers.len() as u16, "Illegal answers quantity");
-            // todo add answers check
+
+            let mut hash = QuizChain::get_hash(quiz.secret.clone().unwrap());
+            let questions = self.get_questions_by_quiz(quiz_id);
+
+            let mut question_id: QuestionId = 0;
+            for answer in &revealed_answers {
+                let answer_value = if answer.selected_option_ids.is_some(){
+                    let question: &QuestionOutput = questions.get(question_id as usize).unwrap();
+                    let options_quantity = question.question_options.len() as QuestionId;
+                    let options = self.get_question_options_by_question_id(quiz_id, question_id, options_quantity);
+
+                    let mut answer_string: String = "".to_string();
+                    let mut option_ids: Vec<QuestionOptionId> = revealed_answers[question_id as usize].selected_option_ids.clone().unwrap();
+                    option_ids.sort();
+                    for option_id in &option_ids {
+                        answer_string = format!("{}{}", answer_string, options[*option_id as usize].content.to_lowercase());
+                    }
+                    answer_string
+                }
+                else {
+                    answer.selected_text.clone().unwrap().to_lowercase()
+                };
+
+                hash = QuizChain::get_hash(format!("{}{}", hash, answer_value));
+
+                question_id += 1;
+            }
+
+            assert_eq!(hash, quiz.success_hash.clone().unwrap(), "Provided answers are not valid");
 
             quiz.revealed_answers = Some(revealed_answers);
             self.quizzes.insert(&quiz_id, &quiz);
+            log!("Provided answers are valid");
         }
     }
 
