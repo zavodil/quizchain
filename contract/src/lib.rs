@@ -1,6 +1,6 @@
 // To conserve gas, efficient serialization is achieved through Borsh (http://borsh.io/)
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::{env, near_bindgen, AccountId, Balance, BorshStorageKey, PanicOnDefault, Timestamp, log};
+use near_sdk::{env, near_bindgen, AccountId, Balance, BorshStorageKey, PanicOnDefault, Timestamp, log, assert_one_yocto};
 use near_sdk::collections::{LookupMap, UnorderedSet /* UnorderedMap , Vector*/ };
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::json_types::WrappedBalance;
@@ -16,6 +16,7 @@ mod game;
 type QuizId = u64;
 type QuestionId = u16;
 type QuestionOptionId = u16;
+type AnswerId = u16;
 type RewardId = u16;
 type Secret = String;
 type Hash = String;
@@ -39,24 +40,29 @@ pub struct QuizChain {
     answers: LookupMap<AnswerByQuizByQuestionByUser, Answer>,
 
     next_quiz_id: QuizId,
+    service_fee_total: Balance
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct Quiz {
     owner_id: AccountId,
-    status: Status,
+    status: QuizStatus,
 
     total_questions: u16,
 
-    unclaimed_rewards_ids: Vec<RewardId>,
+    available_rewards_ids: Vec<RewardId>,
+    distributed_rewards_ids: Vec<RewardId>,
 
     secret: Option<Secret>,
     success_hash: Option<Hash>,
+
+    revealed_answers: Option<Vec<RevealedAnswer>>
 }
 
 #[derive(Serialize, Deserialize, BorshDeserialize, BorshSerialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Question {
+    kind: QuestionKind,
     content: String,
     hint: Option<String>,
     options_quantity: u16
@@ -72,15 +78,15 @@ pub struct QuestionOption {
 #[derive(Serialize, Deserialize, BorshDeserialize, BorshSerialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct QuestionInput {
+    kind: QuestionKind,
     content: String,
-    hint: Option<String>
+    hint: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct RewardInput {
     amount: WrappedBalance,
-    claimed_by: Option<AccountId>
 }
 
 #[derive(Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
@@ -88,7 +94,8 @@ pub struct RewardInput {
 pub struct RewardOutput {
     id: RewardId,
     amount: WrappedBalance,
-    claimed_by: Option<AccountId>
+    winner_account_id: Option<AccountId>,
+    claimed: bool
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
@@ -111,7 +118,7 @@ pub struct QuestionOptionOutput {
 #[serde(crate = "near_sdk::serde")]
 pub struct QuizByUser {
     quiz_id: QuizId,
-    user_id: AccountId
+    account_id: AccountId
 }
 
 #[derive(Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
@@ -119,7 +126,7 @@ pub struct QuizByUser {
 pub struct AnswerByQuizByQuestionByUser {
     quiz_id: QuizId,
     question_id: QuestionId,
-    user_id: AccountId
+    account_id: AccountId
 }
 
 #[derive(Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
@@ -154,26 +161,43 @@ pub struct Game {
 #[derive(Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Answer {
-    selected_option_id: QuestionOptionId,
+    selected_option_ids: Option<Vec<QuestionOptionId>>,
+    selected_text: Option<String>,
     timestamp: Timestamp
 }
 
+#[derive(Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct RevealedAnswer {
+    selected_option_ids: Option<Vec<QuestionOptionId>>,
+    selected_text: Option<String>
+}
 
 
 #[derive(Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Reward {
     amount: Balance,
-    claimed_by: Option<AccountId>
+    winner_account_id: Option<AccountId>,
+    claimed: bool
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Copy, Clone, Debug, PartialEq)]
 #[serde(crate = "near_sdk::serde")]
-pub enum Status {
+pub enum QuizStatus {
     Locked,
     InProgress,
     Finished
 }
+
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Copy, Clone, Debug, PartialEq)]
+#[serde(crate = "near_sdk::serde")]
+pub enum QuestionKind {
+    OneChoice,
+    MultipleChoice,
+    Text
+}
+
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Copy, Clone)]
 #[serde(crate = "near_sdk::serde")]
@@ -212,31 +236,14 @@ impl QuizChain {
             answers: LookupMap::new(StorageKey::Answers),
 
             next_quiz_id: 0,
+            service_fee_total: 0
         }
     }
 }
 
 #[near_bindgen]
 impl QuizChain {
-    /*
-    pub fn set_greeting(&mut self, message: String) {
-        let account_id = env::signer_account_id();
 
-        // Use env::log to record logs permanently to the blockchain!
-        env::log(format!("Saving greeting '{}' for account '{}'", message, account_id,).as_bytes());
-
-        self.games.insert(&account_id, &message);
-    }
-
-    // `match` is similar to `switch` in other languages; here we use it to default to "Hello" if
-    // self.records.get(&account_id) is not yet defined.
-    // Learn more: https://doc.rust-lang.org/book/ch06-02-match.html#matching-with-optiont
-    pub fn get_greeting(&self, account_id: String) -> String {
-        match self.games.get(&account_id) {
-            Some(greeting) => greeting,
-            None => "Hello".to_string(),
-        }
-    }*/
 }
 
 /*

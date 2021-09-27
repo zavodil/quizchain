@@ -1,22 +1,27 @@
 use crate::*;
+use std::cmp::min;
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct QuizOutput {
     owner_id: AccountId,
-    status: Status,
+    status: QuizStatus,
     total_questions: u16,
     unclaimed_rewards_ids: Vec<RewardId>,
     secret: Option<String>,
     success_hash: Option<String>,
     questions: Vec<QuestionOutput>,
-    rewards: Vec<RewardOutput>,
+    available_rewards: Vec<RewardOutput>,
+    distributed_rewards: Vec<RewardOutput>,
+    revealed_answers: Option<Vec<RevealedAnswer>>
 }
 
+// 10 NEAR
+const MAX_SERVICE_FEE: Balance = 10_000_000_000_000_000_000_000_000;
 
-// todo pay
 #[near_bindgen]
 impl QuizChain {
+    #[payable]
     pub fn create_quiz(&mut self,
                        questions: Vec<QuestionInput>,
                        all_question_options: Vec<Vec<QuestionOption>>,
@@ -26,11 +31,34 @@ impl QuizChain {
         assert_eq!(questions.len(), all_question_options.len(), "Questions and question options not matched");
         assert!(questions.len() > 0, "Data not found");
 
-        let total_questions = questions.len() as u16;
-        let mut unclaimed_rewards_ids = Vec::new();
-
         let quiz_id = self.next_quiz_id;
+
+        let mut reward_id: RewardId = 0;
+        let mut unclaimed_rewards_ids = Vec::new();
+        let mut rewards_total: Balance = 0;
+
+        for reward in &rewards {
+            rewards_total += reward.amount.0;
+            self.rewards.insert(
+                &QuizChain::get_reward_by_quiz(quiz_id, reward_id),
+                &Reward{
+                    amount: reward.amount.0,
+                    winner_account_id: None,
+                    claimed: false
+                });
+            unclaimed_rewards_ids.push(reward_id);
+
+            reward_id += 1;
+        }
+
+        let service_fee = min(rewards_total / 100, MAX_SERVICE_FEE);
+        assert_eq!(env::attached_deposit(), rewards_total + service_fee,
+                   "Illegal deposit, please deposit {} yNEAR for rewards and {} yNEAR for the service fee", rewards_total, service_fee);
+        self.service_fee_total += service_fee;
+
         self.next_quiz_id += 1;
+        let total_questions = questions.len() as u16;
+
         let mut options_quantity = 0;
 
         let mut question_id: QuestionId = 0;
@@ -53,32 +81,22 @@ impl QuizChain {
                 &Question{
                     content: question.content.clone(),
                     hint: question.hint.clone(),
-                    options_quantity
+                    options_quantity,
+                    kind: question.kind
                 });
 
             question_id += 1;
         }
 
-        let mut reward_id: RewardId = 0;
-        for reward in &rewards {
-            self.rewards.insert(
-                &QuizChain::get_reward_by_quiz(quiz_id, reward_id),
-                &Reward{
-                    amount: reward.amount.0,
-                    claimed_by: None
-                });
-            unclaimed_rewards_ids.push(reward_id);
-
-            reward_id += 1;
-        }
-
         let quiz = Quiz {
             owner_id: env::predecessor_account_id(),
-            status: Status::Locked,
+            status: QuizStatus::Locked,
             total_questions,
-            unclaimed_rewards_ids,
+            available_rewards_ids: unclaimed_rewards_ids,
+            distributed_rewards_ids: Vec::new(),
             secret,
             success_hash,
+            revealed_answers: None
         };
         self.quizzes.insert(&quiz_id, &quiz);
 
@@ -88,13 +106,28 @@ impl QuizChain {
     pub fn activate_quiz(&mut self, quiz_id: QuizId, secret: Secret, success_hash: Hash){
         if let Some(mut quiz) = self.quizzes.get(&quiz_id) {
             QuizChain::assert_current_user(&quiz.owner_id);
-            assert_eq!(quiz.status, Status::Locked, "Quiz was already unlocked");
+            assert_eq!(quiz.status, QuizStatus::Locked, "Quiz was already unlocked");
 
             quiz.secret = Some(secret);
-            quiz.status = Status::InProgress;
+            quiz.status = QuizStatus::InProgress;
             quiz.success_hash = Some(success_hash);
             self.quizzes.insert(&quiz_id, &quiz);
             self.active_quizzes.insert(&quiz_id);
+        }
+    }
+
+    #[payable]
+    pub fn reveal_answers(&mut self, quiz_id: QuizId, revealed_answers: Vec<RevealedAnswer>) {
+        assert_one_yocto();
+
+        if let Some(mut quiz) = self.quizzes.get(&quiz_id) {
+            QuizChain::assert_current_user(&quiz.owner_id);
+            assert_eq!(quiz.status, QuizStatus::Finished, "Quiz is not finished");
+            assert_eq!(quiz.total_questions, revealed_answers.len() as u16, "Illegal answers quantity");
+            // todo add answers check
+
+            quiz.revealed_answers = Some(revealed_answers);
+            self.quizzes.insert(&quiz_id, &quiz);
         }
     }
 
@@ -108,11 +141,13 @@ impl QuizChain {
                 owner_id: quiz.owner_id,
                 status: quiz.status,
                 total_questions: quiz.total_questions,
-                unclaimed_rewards_ids: quiz.unclaimed_rewards_ids,
+                unclaimed_rewards_ids: quiz.available_rewards_ids,
                 secret: quiz.secret,
                 success_hash: quiz.success_hash,
                 questions: self.get_questions_by_quiz(quiz_id),
-                rewards: self.get_rewards_by_quiz(quiz_id)
+                available_rewards: self.get_unclaimed_rewards_by_quiz(quiz_id),
+                distributed_rewards: self.get_distributed_rewards_by_quiz(quiz_id),
+                revealed_answers: quiz.revealed_answers,
             })
         }
         else {
