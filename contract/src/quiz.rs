@@ -185,6 +185,10 @@ impl QuizChain {
         }
     }
 
+    pub fn get_active_quizzes (&self) -> Vec<QuizId> {
+        self.active_quizzes.to_vec()
+    }
+
     pub fn get_questions_by_quiz(&self, quiz_id: QuizId) -> Vec<QuestionOutput> {
         let mut questions: Vec<QuestionOutput> = Vec::new();
         if let Some(quiz) = self.quizzes.get(&quiz_id) {

@@ -93,6 +93,7 @@ impl QuizChain {
                         }
                         quiz.distributed_rewards_ids.push(*reward_id);
                         self.quizzes.insert(quiz_id, &quiz);
+                        self.active_quizzes.remove(quiz_id);
                     }
                 }
 
