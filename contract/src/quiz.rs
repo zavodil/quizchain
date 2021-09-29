@@ -5,6 +5,8 @@ use std::cmp::min;
 #[serde(crate = "near_sdk::serde")]
 pub struct QuizOutput {
     id: QuizId,
+    title: String,
+    description: String,
     owner_id: AccountId,
     status: QuizStatus,
     total_questions: u16,
@@ -24,6 +26,8 @@ const MAX_SERVICE_FEE: Balance = 10_000_000_000_000_000_000_000_000;
 impl QuizChain {
     #[payable]
     pub fn create_quiz(&mut self,
+                       title: String,
+                       description: String,
                        questions: Vec<QuestionInput>,
                        all_question_options: Vec<Vec<QuestionOption>>,
                        rewards: Vec<RewardInput>,
@@ -90,6 +94,8 @@ impl QuizChain {
         }
 
         let quiz = Quiz {
+            title,
+            description,
             owner_id: env::predecessor_account_id(),
             status: QuizStatus::Locked,
             total_questions,
@@ -170,6 +176,8 @@ impl QuizChain {
         if let Some(quiz) = self.quizzes.get(&quiz_id) {
             Some(QuizOutput{
                 id: quiz_id,
+                title: quiz.title,
+                description: quiz.description,
                 owner_id: quiz.owner_id,
                 status: quiz.status,
                 total_questions: quiz.total_questions,

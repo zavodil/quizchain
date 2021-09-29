@@ -46,6 +46,8 @@ pub struct QuizChain {
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct Quiz {
+    title: String,
+    description: String,
     owner_id: AccountId,
     status: QuizStatus,
 
