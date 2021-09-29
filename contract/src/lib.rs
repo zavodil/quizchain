@@ -37,6 +37,7 @@ pub struct QuizChain {
     rewards: LookupMap<RewardByQuiz, Reward>,
 
     games: LookupMap<QuizByUser, Game>,
+    players: LookupMap<QuizId, UnorderedSet<AccountId>>,
     answers: LookupMap<AnswerByQuizByQuestionByUser, Answer>,
 
     next_quiz_id: QuizId,
@@ -166,7 +167,7 @@ pub struct Answer {
     timestamp: Timestamp
 }
 
-#[derive(Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
+#[derive(Serialize, Deserialize, BorshDeserialize, BorshSerialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct RevealedAnswer {
     selected_option_ids: Option<Vec<QuestionOptionId>>,
@@ -217,6 +218,7 @@ enum StorageKey {
     Rewards,
 
     Games,
+    Players,
     Answers,
 }
 
@@ -233,6 +235,7 @@ impl QuizChain {
             rewards: LookupMap::new(StorageKey::Rewards),
 
             games: LookupMap::new(StorageKey::Games),
+            players: LookupMap::new(StorageKey::Players),
             answers: LookupMap::new(StorageKey::Answers),
 
             next_quiz_id: 0,

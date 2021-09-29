@@ -4,6 +4,7 @@ use std::cmp::min;
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct QuizOutput {
+    id: QuizId,
     owner_id: AccountId,
     status: QuizStatus,
     total_questions: u16,
@@ -168,6 +169,7 @@ impl QuizChain {
     pub fn get_quiz(&self, quiz_id: QuizId) -> Option<QuizOutput> {
         if let Some(quiz) = self.quizzes.get(&quiz_id) {
             Some(QuizOutput{
+                id: quiz_id,
                 owner_id: quiz.owner_id,
                 status: quiz.status,
                 total_questions: quiz.total_questions,
