@@ -1,7 +1,8 @@
+use std::cmp::min;
+
 use near_sdk::json_types::ValidAccountId;
 
 use crate::*;
-use std::cmp::min;
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
@@ -41,16 +42,39 @@ impl QuizChain {
         }
     }
 
+    #[private]
+    pub fn start_game_for_account_id(&mut self, quiz_id: QuizId, account_id: AccountId) {
+        if let Some(quiz) = self.quizzes.get(&quiz_id) {
+            let game_id = QuizChain::get_quiz_by_user(quiz_id, account_id.clone());
+
+            let mut players: UnorderedSet<AccountId> = self.players.get(&quiz_id).unwrap_or(UnorderedSet::new(quiz_id.to_string().as_bytes().to_vec()));
+
+            players.insert(&account_id);
+            self.players.insert(&quiz_id, &players);
+
+            self.games.insert(&game_id,
+                              &Game {
+                                  answers_quantity: 0,
+                                  current_hash: QuizChain::get_hash(quiz.secret.unwrap()),
+                              });
+        }
+    }
+
     pub fn gets_quiz_stats(&self, quiz_id: QuizId, from_index: usize, limit: usize) -> Option<Vec<StatsOutput>> {
         if let Some(player_ids) = self.players.get(&quiz_id) {
+            let player_ids_qty = player_ids.len() as usize;
             let mut stats: Vec<StatsOutput> = Vec::new();
-            let limit_id = min(from_index+limit, player_ids.len() as usize);
-            for player_id in &player_ids.to_vec()[from_index..limit_id] {
-                if let Some(game) = self.games.get(&QuizChain::get_quiz_by_user(quiz_id, player_id.clone())) {
-                    stats.push(StatsOutput {
-                        player_id: player_id.clone(),
-                        answers_quantity: game.answers_quantity,
-                    });
+            assert!(from_index <= player_ids_qty, "Illegal from_index");
+            let limit_id = min(from_index + limit, player_ids_qty);
+            let player_account_ids = player_ids.as_vector();
+            for player_index in from_index..limit_id {
+                if let Some(player_id) = player_account_ids.get(player_index as u64) {
+                    if let Some(game) = self.games.get(&QuizChain::get_quiz_by_user(quiz_id, player_id.clone())) {
+                        stats.push(StatsOutput {
+                            player_id,
+                            answers_quantity: game.answers_quantity,
+                        });
+                    }
                 }
             }
             Some(stats)

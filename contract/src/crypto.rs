@@ -90,10 +90,10 @@ impl QuizChain {
                         quiz.available_rewards_ids = other_reward_ids.to_vec();
                         if other_reward_ids.len() == 0 {
                             quiz.status = QuizStatus::Finished;
+                            self.active_quizzes.remove(quiz_id);
                         }
                         quiz.distributed_rewards_ids.push(*reward_id);
                         self.quizzes.insert(quiz_id, &quiz);
-                        self.active_quizzes.remove(quiz_id);
                     }
                 }
 
