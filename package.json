@@ -17,8 +17,8 @@
     "test:contract": "npm run build:contract:debug && cd contract && cargo test -- --nocapture && cd .. && jest test --runInBand",
     "reinit": "node contract/compile.js && near dev-deploy -f && source ./neardev/dev-account.env && near call $CONTRACT_NAME new '{}' --accountId=$CONTRACT_NAME",
     "redeploy": "node contract/compile.js && near dev-deploy",
-    "dummy": "cross-env NODE_ENV=testnet && cross-env CONTRACT_NAME=dev-1633011054319-2583506 jest rest-api-dummy-data.test.js --useStderr",
-    "test": "cross-env NODE_ENV=testnet && cross-env CONTRACT_NAME=dev-1633011054319-2583506 jest rest-api.test.js --useStderr"
+    "dummy": "cross-env NODE_ENV=testnet && cross-env CONTRACT_NAME=dev-1634073098508-6961159 jest rest-api-dummy-data.test.js --useStderr",
+    "test": "cross-env NODE_ENV=testnet && cross-env CONTRACT_NAME=dev-1634073098508-6961159 jest rest-api.test.js --useStderr"
   },
   "devDependencies": {
     "@babel/core": "~7.14.0",

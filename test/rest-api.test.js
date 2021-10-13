@@ -40,9 +40,10 @@ describe("Quiz", () => {
             {
                 title: "Test QUIZ",
                 description: "Dummy text about the quiz",
-                questions: [{
-                    "kind": "OneChoice", "content": "Какое сейчас время года?"
-                },
+                finality_type: "Direct",
+                restart_allowed: true,
+                questions: [
+                    {"kind": "OneChoice", "content": "Какое сейчас время года?"},
                     {"kind": "MultipleChoice", "content": "Какие цифры четные"},
                     {"kind": "Text", "content": "Столица США", "hint": "Пишите на русском языке без опечаток"}
                 ],

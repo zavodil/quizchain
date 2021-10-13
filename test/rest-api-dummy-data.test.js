@@ -25,10 +25,10 @@ describe("Contract set", () => {
 describe("Insert dummy data", () => {
     console.log(contract_id)
     test('Insert players', async () => {
-        for (let i = 500; i <= 1000; i++) {
+        for (let i = 500; i <= 600; i++) {
             let account = `account_${i}.testnet`;
             const start_game = await near.call("start_game_for_account_id",
-                {quiz_id: 35, account_id: account},
+                {quiz_id: 36, account_id: account},
                 {account_id: contract_id});
             expect(start_game.type).not.toBe('FunctionCallError');
         }
