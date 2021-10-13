@@ -49,7 +49,7 @@ impl QuizChain {
     pub fn after_ft_withdraw(
         &mut self,
         account_id: AccountId,
-        amount_redeemed: WrappedBalance,
+        amount: WrappedBalance,
         quiz_id: Option<QuizId>,
         reward_id: Option<RewardId>
     ) -> bool {
@@ -60,14 +60,14 @@ impl QuizChain {
                     let index = QuizChain::get_reward_by_quiz(quiz_id_unwrapped, reward_id_unwrapped);
                     if let Some (reward) = self.rewards.get(&index){
                         self.rewards.insert(&index, &Reward {
-                            amount: reward.amount + amount_redeemed.0,
+                            amount: reward.amount + amount.0,
                             winner_account_id: reward.winner_account_id,
                             claimed: false
                         });
                         log!(
                             "FT withdraw for {} failed. Tokens to recharge: {}",
                             account_id,
-                            amount_redeemed.0
+                            amount.0
                         );
                     }
                 }
