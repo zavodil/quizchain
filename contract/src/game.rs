@@ -29,7 +29,7 @@ impl QuizChain {
             assert_eq!(question_id, game.answers_quantity, "Wrong index of the answer");
 
             if let Some(mut quiz) = self.quizzes.get(&quiz_id) {
-                assert_eq!(quiz.status, QuizStatus::InProgress, "Quiz is not active");
+                QuizChain::assert_game_available_to_play(&quiz.status);
 
                 if let Some(question) = self.questions.get(&QuizChain::get_question_by_quiz(quiz_id, question_id)) {
                     let mut answer_to_hash: String = "".to_string();
@@ -77,7 +77,7 @@ impl QuizChain {
                     self.games.insert(&game_id, &game);
                     //log!("Answer '{}' added. New game hash: {}", answer_to_hash, new_hash);
 
-                    if game.answers_quantity == quiz.total_questions {
+                    if quiz.status == QuizStatus::InProgress && game.answers_quantity == quiz.total_questions {
                         match quiz.finality_type {
                             QuizFinalityType::Direct => self.finalize_game(&game, &quiz_id, &mut quiz),
                             QuizFinalityType::DelayedReveal => self.stop_game(game.current_hash, &quiz_id),
@@ -139,9 +139,13 @@ impl QuizChain {
         format!("{:x}", Sha256::digest(text.as_bytes()))
     }
 
+    pub (crate) fn assert_game_available_to_play(status: &QuizStatus){
+        assert!([QuizStatus::InProgress, QuizStatus::Finished].contains(&status), "Quiz is not active");
+    }
+
     pub fn start_game(&mut self, quiz_id: QuizId) {
         if let Some(quiz) = self.quizzes.get(&quiz_id) {
-            assert_eq!(quiz.status, QuizStatus::InProgress, "Quiz is not active");
+            QuizChain::assert_game_available_to_play(&quiz.status);
             let account_id = env::predecessor_account_id();
 
             let game_id = QuizChain::get_quiz_by_user(quiz_id, account_id.clone());
@@ -212,7 +216,7 @@ impl QuizChain {
         }
     }
 
-    pub fn gets_quiz_stats(&self, quiz_id: QuizId, from_index: usize, limit: usize) -> Option<Vec<StatsOutput>> {
+    pub fn get_quiz_stats(&self, quiz_id: QuizId, from_index: usize, limit: usize) -> Option<Vec<StatsOutput>> {
         if let Some(player_ids) = self.players.get(&quiz_id) {
             let player_ids_qty = player_ids.len() as usize;
             let mut stats: Vec<StatsOutput> = Vec::new();

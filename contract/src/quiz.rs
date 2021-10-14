@@ -226,32 +226,6 @@ impl QuizChain {
         }
     }
 
-    /*
-      pub fn gets_quiz_stats(&self, quiz_id: QuizId, from_index: usize, limit: usize) -> Option<Vec<StatsOutput>> {
-        if let Some(player_ids) = self.players.get(&quiz_id) {
-            let player_ids_qty = player_ids.len() as usize;
-            let mut stats: Vec<StatsOutput> = Vec::new();
-            assert!(from_index <= player_ids_qty, "Illegal from_index");
-            let limit_id = min(from_index + limit, player_ids_qty);
-            let player_account_ids = player_ids.as_vector();
-            for player_index in from_index..limit_id {
-                if let Some(player_id) = player_account_ids.get(player_index as u64) {
-                    if let Some(game) = self.games.get(&QuizChain::get_quiz_by_user(quiz_id, player_id.clone())) {
-                        stats.push(StatsOutput {
-                            player_id,
-                            answers_quantity: game.answers_quantity,
-                        });
-                    }
-                }
-            }
-            Some(stats)
-        } else {
-            None
-        }
-    }
-
-     */
-
     #[payable]
     pub fn create_quiz(&mut self,
                        title: String,
