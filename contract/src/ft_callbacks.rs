@@ -51,22 +51,36 @@ impl FungibleTokenReceiver for QuizChain {
                 amount.0,
                 token_account_id);
         } else if operation == "create_quiz" {
-            let quiz_id = self.create_quiz_internal(quiz_owner_value.clone(),
-                                                    title,
-                                                    description,
-                                                    language,
-                                                    finality_type,
-                                                    questions,
-                                                    all_question_options,
-                                                    rewards,
-                                                    secret.clone(),
-                                                    success_hash.clone(),
-                                                    restart_allowed,
-                                                    amount.0,
-                                                    token_account_id);
-
             if let Some(secret_unwrapped) = secret {
-                self.activate_quiz_internal(quiz_owner_value, quiz_id, secret_unwrapped, success_hash);
+                log!("create and activate");
+                self.create_quiz_and_activate_internal(quiz_owner_value.clone(),
+                                          title,
+                                          description,
+                                          language,
+                                          finality_type,
+                                          questions,
+                                          all_question_options,
+                                          rewards,
+                                          secret_unwrapped,
+                                          success_hash.clone(),
+                                          restart_allowed,
+                                          amount.0,
+                                          token_account_id);
+            }
+            else {
+                self.create_quiz_internal(quiz_owner_value.clone(),
+                                          title,
+                                          description,
+                                          language,
+                                          finality_type,
+                                          questions,
+                                          all_question_options,
+                                          rewards,
+                                          secret.clone(),
+                                          success_hash.clone(),
+                                          restart_allowed,
+                                          amount.0,
+                                          token_account_id);
             }
         } else {
             panic!("Unknown operation");

@@ -367,6 +367,112 @@ impl QuizChain {
         quiz_id
     }
 
+    pub fn create_quiz_and_activate_internal(&mut self,
+                                owner_id: AccountId,
+                                title: String,
+                                description: Option<String>,
+                                language: Option<String>,
+                                finality_type: QuizFinalityType,
+                                questions: Vec<QuestionInput>,
+                                all_question_options: Vec<Vec<QuestionOption>>,
+                                rewards: Vec<RewardInput>,
+                                secret: Secret,
+                                success_hash: Option<Hash>,
+                                restart_allowed: bool,
+                                deposit: Balance,
+                                token_account_id: Option<TokenAccountId>) -> QuizId {
+        assert_eq!(questions.len(), all_question_options.len(), "Questions and question options not matched");
+        assert!(!questions.is_empty(), "Data not found");
+
+        let quiz_id = self.next_quiz_id;
+
+        let mut reward_id: RewardId = 0;
+        let mut unclaimed_rewards_ids = Vec::new();
+        let mut rewards_total: Balance = 0;
+
+        for reward in &rewards {
+            rewards_total += reward.amount.0;
+            self.rewards.insert(
+                &QuizChain::get_reward_by_quiz(quiz_id, reward_id),
+                &Reward {
+                    amount: reward.amount.0,
+                    winner_account_id: None,
+                    claimed: false,
+                });
+            unclaimed_rewards_ids.push(reward_id);
+
+            reward_id += 1;
+        }
+
+        let service_fee: Balance = if QuizChain::unwrap_token_id(&token_account_id) == NEAR.to_string() {
+            std::cmp::min(rewards_total * SERVICE_RATE_NUMERATOR / SERVICE_RATE_DENOMINATOR, MAX_SERVICE_FEE)
+        } else {
+            rewards_total * SERVICE_RATE_NUMERATOR / SERVICE_RATE_DENOMINATOR
+        };
+        assert_eq!(deposit, rewards_total + service_fee,
+                   "Illegal deposit, please deposit {} yNEAR for rewards and {} yNEAR for the service fee", rewards_total, service_fee);
+
+        self.add_service_fees_total(service_fee, &token_account_id);
+
+        self.next_quiz_id += 1;
+        let total_questions = questions.len() as u16;
+
+        let mut options_quantity = 0;
+
+        let mut question_id: QuestionId = 0;
+        for question in &questions {
+            if let Some(question_options) = all_question_options.get(question_id as usize) {
+                let mut question_option_id: QuestionOptionId = 0;
+                for question_option in question_options {
+                    self.question_options.insert(
+                        &QuizChain::get_question_option_by_quiz(quiz_id, question_id, question_option_id),
+                        question_option);
+                    question_option_id += 1;
+                }
+
+                options_quantity = question_options.len() as u16;
+            }
+
+            self.questions.insert(
+                &QuizChain::get_question_by_quiz(quiz_id, question_id),
+                &Question{
+                    content: question.content.clone(),
+                    hint: question.hint.clone(),
+                    options_quantity,
+                    kind: question.kind
+                });
+
+            question_id += 1;
+        }
+
+        let quiz = Quiz {
+            title: Some(title),
+            description,
+            language,
+            finality_type,
+            owner_id: owner_id.clone(),
+            status: QuizStatus::InProgress,
+            total_questions,
+            available_rewards_ids: unclaimed_rewards_ids,
+            distributed_rewards_ids: Vec::new(),
+            secret: Some(secret),
+            success_hash,
+            revealed_answers: None,
+            sponsor_account_id: None,
+            funded_amount: None,
+            restart_allowed,
+            timestamp: Some(env::block_timestamp()),
+            token_account_id,
+        };
+        self.quizzes.insert(&quiz_id, &quiz);
+
+        self.active_quizzes.insert(&quiz_id);
+
+        self.add_quiz_for_owner(&quiz_id, owner_id);
+
+        quiz_id
+    }
+
     pub fn activate_quiz(&mut self, quiz_id: QuizId, secret: Secret, success_hash: Option<Hash>) {
         self.activate_quiz_internal(env::predecessor_account_id(), quiz_id, secret, success_hash);
     }
