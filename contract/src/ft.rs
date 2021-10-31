@@ -24,6 +24,7 @@ impl QuizChain {
 
     pub (crate) fn add_service_fees_total(&mut self, amount: Balance, token_account_id: &Option<TokenAccountId>){
         let token_id = QuizChain::unwrap_token_id(token_account_id);
+        log!("{} of {} went to treasury", amount, token_id);
         let balance = self.service_fees_total.get(&token_id).unwrap_or(0);
         self.service_fees_total.insert(&token_id, &(balance + amount));
     }

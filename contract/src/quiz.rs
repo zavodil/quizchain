@@ -26,6 +26,7 @@ pub struct QuizOutput {
     timestamp: Option<Timestamp>,
     restart_allowed: bool,
     token_account_id: Option<TokenAccountId>,
+    funded_amount: Option<Balance>
 }
 
 // 10 NEAR
@@ -42,13 +43,20 @@ impl QuizChain {
         self.create_quiz_for_account_internal(env::predecessor_account_id(), quiz_owner_id.into(), deposit, token_account_id)
     }
 
-    pub(crate) fn create_quiz_for_account_internal(&mut self, sender_id: AccountId, quiz_owner_id: AccountId, deposit: Balance, token_account_id: Option<TokenAccountId>) -> QuizId {
-        let service_fee: Balance = deposit * SERVICE_RATE_NUMERATOR / SERVICE_RATE_DENOMINATOR;
+    pub(crate) fn create_quiz_for_account_internal(
+        &mut self, sender_id: AccountId,
+        quiz_owner_id: AccountId,
+        deposit: Balance,
+        token_account_id: Option<TokenAccountId>)
+        -> QuizId {
+
+        let service_fee: Balance =
+                deposit - deposit * SERVICE_RATE_DENOMINATOR / (SERVICE_RATE_DENOMINATOR + SERVICE_RATE_NUMERATOR) ;
+        let funded_amount: Balance = deposit - service_fee;
 
         self.add_service_fees_total(service_fee, &token_account_id);
 
         let quiz_id = self.next_quiz_id;
-        let funded_amount: Balance = deposit - service_fee;
         self.quizzes.insert(&quiz_id,
                             &Quiz {
                                 title: None,
@@ -154,8 +162,8 @@ impl QuizChain {
                 total_questions,
                 available_rewards_ids: unclaimed_rewards_ids,
                 distributed_rewards_ids: Vec::new(),
-                secret,
-                success_hash,
+                secret: secret.clone(),
+                success_hash: success_hash.clone(),
                 revealed_answers: None,
                 sponsor_account_id: None,
                 funded_amount: None,
@@ -166,6 +174,10 @@ impl QuizChain {
             self.quizzes.insert(&quiz_id, &quiz);
             self.add_quiz_for_owner(&quiz_id, env::predecessor_account_id());
 
+            if let Some(secret_unwrapped) = secret {
+                self.activate_quiz(quiz_id, secret_unwrapped, success_hash)
+            }
+
             quiz_id
         } else {
             panic!("Quiz not found");
@@ -173,20 +185,26 @@ impl QuizChain {
     }
     pub(crate) fn add_quiz_for_player(&mut self, quiz_id: &QuizId, account_id: AccountId) {
         let mut quizzes_for_player: Vec<QuizId> = self.quizzes_by_player_id.get(&account_id).unwrap_or([].to_vec());
-        quizzes_for_player.push(*quiz_id);
-        self.quizzes_by_player_id.insert(&account_id, &quizzes_for_player);
+        if !quizzes_for_player.contains(quiz_id) {
+            quizzes_for_player.push(*quiz_id);
+            self.quizzes_by_player_id.insert(&account_id, &quizzes_for_player);
+        }
     }
 
     pub(crate) fn add_quiz_for_owner(&mut self, quiz_id: &QuizId, account_id: AccountId) {
         let mut quizzes_for_owner: Vec<QuizId> = self.quizzes_by_owner_id.get(&account_id).unwrap_or([].to_vec());
-        quizzes_for_owner.push(*quiz_id);
-        self.quizzes_by_owner_id.insert(&account_id, &quizzes_for_owner);
+        if !quizzes_for_owner.contains(quiz_id) {
+            quizzes_for_owner.push(*quiz_id);
+            self.quizzes_by_owner_id.insert(&account_id, &quizzes_for_owner);
+        }
     }
 
     pub(crate) fn add_quiz_for_sponsor(&mut self, quiz_id: &QuizId, account_id: AccountId) {
         let mut quizzes_for_sponsor: Vec<QuizId> = self.quizzes_by_sponsor_id.get(&account_id).unwrap_or([].to_vec());
-        quizzes_for_sponsor.push(*quiz_id);
-        self.quizzes_by_sponsor_id.insert(&account_id, &quizzes_for_sponsor);
+        if !quizzes_for_sponsor.contains(quiz_id) {
+            quizzes_for_sponsor.push(*quiz_id);
+            self.quizzes_by_sponsor_id.insert(&account_id, &quizzes_for_sponsor);
+        }
     }
 
     pub (crate) fn get_quizzes_by_ids(&self, quizzes_ids: Vec<QuizId>, from_index: usize, limit: usize) -> Vec<QuizOutput>{
@@ -675,6 +693,7 @@ impl QuizChain {
                 timestamp: quiz.timestamp,
                 restart_allowed: quiz.restart_allowed,
                 token_account_id: quiz.token_account_id,
+                funded_amount: quiz.funded_amount
             })
         }
         else {
