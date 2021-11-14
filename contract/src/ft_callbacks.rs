@@ -88,6 +88,8 @@ impl FungibleTokenReceiver for QuizChain {
             panic!("Unknown operation");
         };
 
-        PromiseOrValue::Value(sale_id)
+        log!("Quiz {} created", sale_id);
+
+        PromiseOrValue::Value(0)
     }
 }
