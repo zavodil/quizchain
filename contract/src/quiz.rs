@@ -244,6 +244,50 @@ impl QuizChain {
         }
     }
 
+    pub fn get_total_affiliates_for_account(&self, account_id: AccountId) -> u64 {
+        self.total_affiliates.get(&account_id).unwrap_or(0)
+    }
+
+    pub fn get_total_affiliates(&self, from_index: u64, limit: u64) -> Vec<AffiliatesOutput> {
+        let keys = self.total_affiliates.keys_as_vector();
+        let values = self.total_affiliates.values_as_vector();
+        (from_index..std::cmp::min(from_index + limit, keys.len())).map(|index| {
+            AffiliatesOutput {
+                account_id: keys.get(index).unwrap(),
+                affiliates: values.get(index).unwrap(),
+            }
+        }).collect()
+    }
+
+    pub fn get_affiliates_for_account(&self, account_id: AccountId, quiz_id: QuizId) -> u64 {
+        if let Some(get_affiliates_for_account_value) = self.internal_get_affiliates_by_quiz(&quiz_id){
+            get_affiliates_for_account_value.get(&account_id).unwrap_or(0)
+        }
+        else{
+            0
+        }
+    }
+
+    pub fn get_affiliates(&self, quiz_id: QuizId, from_index: u64, limit: u64) -> Vec<AffiliatesOutput> {
+        if let Some(affiliates_by_quiz) = self.internal_get_affiliates_by_quiz(&quiz_id) {
+            let keys = affiliates_by_quiz.keys_as_vector();
+            let values = affiliates_by_quiz.values_as_vector();
+            (from_index..std::cmp::min(from_index + limit, keys.len())).map(|index| {
+                AffiliatesOutput {
+                    account_id: keys.get(index).unwrap(),
+                    affiliates: values.get(index).unwrap(),
+                }
+            }).collect()
+        }
+        else {
+            [].to_vec()
+        }
+    }
+
+    fn internal_get_affiliates_by_quiz(&self, quiz_id: &QuizId) -> Option<UnorderedMap<AccountId, u64>> {
+        self.affiliates.get(quiz_id)
+    }
+
     #[payable]
     pub fn create_quiz(&mut self,
                        title: String,

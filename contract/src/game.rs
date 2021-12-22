@@ -143,7 +143,7 @@ impl QuizChain {
         assert!([QuizStatus::InProgress, QuizStatus::Finished].contains(&status), "Quiz is not active");
     }
 
-    pub fn start_game(&mut self, quiz_id: QuizId) {
+    pub fn start_game(&mut self, quiz_id: QuizId, referrer_id: Option<ValidAccountId>) {
         if let Some(quiz) = self.quizzes.get(&quiz_id) {
             QuizChain::assert_game_available_to_play(&quiz.status);
             let account_id = env::predecessor_account_id();
@@ -154,7 +154,14 @@ impl QuizChain {
             let mut players: UnorderedSet<AccountId> = self.players.get(&quiz_id).unwrap_or(UnorderedSet::new(quiz_id.to_string().as_bytes().to_vec()));
             players.insert(&account_id);
             self.players.insert(&quiz_id, &players);
-            self.add_quiz_for_player(&quiz_id, account_id);
+            self.add_quiz_for_player(&quiz_id, account_id.clone());
+
+            if let Some(valid_referrer_account_id) = referrer_id {
+                let referrer_id_value: AccountId = valid_referrer_account_id.into();
+                if referrer_id_value != account_id && env::is_valid_account_id(referrer_id_value.as_bytes()) {
+                    self.internal_increase_referrer_stats(quiz_id, referrer_id_value);
+                }
+            }
 
             self.games.insert(&game_id,
                               &Game {
@@ -162,6 +169,23 @@ impl QuizChain {
                                   current_hash: QuizChain::get_hash(quiz.secret.unwrap()),
                               });
         }
+    }
+
+    fn internal_increase_referrer_stats(&mut self, quiz_id: QuizId, referrer_id: AccountId) {
+        let mut already_invited_to_this_quiz = if let Some(already_invited) = self.affiliates.get(&quiz_id) {
+            already_invited
+        } else {
+            UnorderedMap::new(StorageKey::AffiliatesByQuiz {
+                quiz_id,
+            })
+        };
+
+        let already_invited_by_referrer = already_invited_to_this_quiz.get(&referrer_id).unwrap_or(0);
+        already_invited_to_this_quiz.insert(&referrer_id, &(already_invited_by_referrer + 1));
+        self.affiliates.insert(&quiz_id, &already_invited_to_this_quiz);
+
+        let already_invited_total = self.total_affiliates.get(&referrer_id).unwrap_or(0);
+        self.total_affiliates.insert(&referrer_id, &(already_invited_total + 1));
     }
 
     pub fn restart_game(&mut self, quiz_id: QuizId) {

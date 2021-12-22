@@ -54,7 +54,7 @@ impl QuizChain {
         reward_id: Option<RewardId>
     ) -> bool {
         let promise_success = is_promise_success();
-        if !is_promise_success() {
+        if !promise_success {
             if let Some(quiz_id_unwrapped) = quiz_id {
                 if let Some(reward_id_unwrapped) = reward_id{
                     let index = QuizChain::get_reward_by_quiz(quiz_id_unwrapped, reward_id_unwrapped);

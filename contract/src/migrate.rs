@@ -2,6 +2,7 @@ use crate::*;
 
 #[near_bindgen]
 impl QuizChain {
+
     #[private]
     #[init(ignore_state)]
     #[allow(dead_code)]
@@ -92,6 +93,65 @@ impl QuizChain {
             quizzes_by_player_id: LookupMap::new(StorageKey::QuizzesByPlayer),
             quizzes_by_owner_id: LookupMap::new(StorageKey::QuizzesByOwner),
             quizzes_by_sponsor_id: LookupMap::new(StorageKey::QuizzesBySponsor),
+
+            affiliates: LookupMap::new(StorageKey::Affiliates),
+            total_affiliates: UnorderedMap::new(StorageKey::TotalAffiliates),
+        }
+    }
+
+    #[private]
+    #[init(ignore_state)]
+    pub fn migrate_2() -> Self {
+        #[derive(BorshDeserialize)]
+        struct OldContract {
+            active_quizzes: UnorderedSet<QuizId>,
+            quizzes: LookupMap<QuizId, Quiz>,
+
+            questions: LookupMap<QuestionByQuiz, Question>,
+            question_options: LookupMap<QuestionOptionByQuiz, QuestionOption>,
+            rewards: LookupMap<RewardByQuiz, Reward>,
+
+            games: LookupMap<QuizByUser, Game>,
+            players: LookupMap<QuizId, UnorderedSet<AccountId>>,
+            answers: LookupMap<AnswerByQuizByQuestionByUser, Answer>,
+
+            next_quiz_id: QuizId,
+            service_fees_total: LookupMap<TokenAccountId, Balance>,
+
+            quiz_results: LookupMap<QuizResultByQuiz, Vec<AccountId>>,
+            whitelisted_tokens: LookupSet<TokenAccountId>,
+
+            quizzes_by_player_id: LookupMap<AccountId, Vec<QuizId>>,
+            quizzes_by_owner_id: LookupMap<AccountId, Vec<QuizId>>,
+            quizzes_by_sponsor_id: LookupMap<AccountId, Vec<QuizId>>
+        }
+
+        let old_contract: OldContract = env::state_read().expect("Old state doesn't exist");
+
+        Self {
+            active_quizzes: old_contract.active_quizzes,
+            quizzes: old_contract.quizzes,
+
+            questions: old_contract.questions,
+            question_options: old_contract.question_options,
+            rewards: old_contract.rewards,
+
+            games: old_contract.games,
+            players: old_contract.players,
+            answers: old_contract.answers,
+
+            next_quiz_id: old_contract.next_quiz_id,
+            service_fees_total: old_contract.service_fees_total,
+
+            quiz_results: old_contract.quiz_results,
+            whitelisted_tokens: old_contract.whitelisted_tokens,
+
+            quizzes_by_player_id: old_contract.quizzes_by_player_id,
+            quizzes_by_owner_id: old_contract.quizzes_by_owner_id,
+            quizzes_by_sponsor_id: old_contract.quizzes_by_sponsor_id,
+
+            affiliates: LookupMap::new(StorageKey::Affiliates),
+            total_affiliates: UnorderedMap::new(StorageKey::TotalAffiliates),
         }
     }
 }

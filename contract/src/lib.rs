@@ -1,7 +1,7 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::{env, near_bindgen, ext_contract, AccountId, Balance, BorshStorageKey, PanicOnDefault,
                PromiseOrValue, Promise, Timestamp, log, assert_one_yocto};
-use near_sdk::collections::{LookupMap, UnorderedSet, LookupSet};
+use near_sdk::collections::{LookupMap, UnorderedSet, LookupSet, UnorderedMap};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::json_types::{ValidAccountId, WrappedBalance};
 use sha2::{Sha256, Digest};
@@ -51,6 +51,9 @@ pub struct QuizChain {
     quizzes_by_player_id: LookupMap<AccountId, Vec<QuizId>>,
     quizzes_by_owner_id: LookupMap<AccountId, Vec<QuizId>>,
     quizzes_by_sponsor_id: LookupMap<AccountId, Vec<QuizId>>,
+
+    affiliates: LookupMap<QuizId, UnorderedMap<AccountId, u64>>,
+    total_affiliates: UnorderedMap<AccountId, u64>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
@@ -134,6 +137,13 @@ pub struct QuestionOptionOutput {
     kind: QuestionOptionKind,
 }
 
+#[derive(Serialize, Deserialize, BorshDeserialize, BorshSerialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct AffiliatesOutput {
+    account_id: AccountId,
+    affiliates: u64
+}
+
 #[derive(Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct QuizByUser {
@@ -200,7 +210,6 @@ pub struct RevealedAnswer {
     selected_text: Option<String>
 }
 
-
 #[derive(Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Reward {
@@ -261,7 +270,11 @@ enum StorageKey {
 
     QuizzesByPlayer,
     QuizzesByOwner,
-    QuizzesBySponsor
+    QuizzesBySponsor,
+
+    Affiliates,
+    AffiliatesByQuiz { quiz_id: u64 },
+    TotalAffiliates,
 }
 
 #[near_bindgen]
@@ -289,6 +302,9 @@ impl QuizChain {
             quizzes_by_player_id: LookupMap::new(StorageKey::QuizzesByPlayer),
             quizzes_by_owner_id: LookupMap::new(StorageKey::QuizzesByOwner),
             quizzes_by_sponsor_id: LookupMap::new(StorageKey::QuizzesBySponsor),
+
+            affiliates: LookupMap::new(StorageKey::Affiliates),
+            total_affiliates: UnorderedMap::new(StorageKey::TotalAffiliates),
         }
     }
 }
