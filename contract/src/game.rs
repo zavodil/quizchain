@@ -17,6 +17,7 @@ pub struct AnswerOutput {
 pub struct StatsOutput {
     player_id: AccountId,
     answers_quantity: u16,
+    last_answer_timestamp: Option<Timestamp>
 }
 
 #[near_bindgen]
@@ -250,9 +251,21 @@ impl QuizChain {
             for player_index in from_index..limit_id {
                 if let Some(player_id) = player_account_ids.get(player_index as u64) {
                     if let Some(game) = self.games.get(&QuizChain::get_quiz_by_user(quiz_id, player_id.clone())) {
+                        let last_answer_timestamp = if game.answers_quantity > 0 {
+                            let last_answer = self.answers.get(&QuizChain::get_answer_by_quiz_by_question(quiz_id, game.answers_quantity - 1, player_id.clone()));
+                            if let Some(last_answer_value) = last_answer {
+                                Some(last_answer_value.timestamp)
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        };
+
                         stats.push(StatsOutput {
                             player_id,
                             answers_quantity: game.answers_quantity,
+                            last_answer_timestamp,
                         });
                     }
                 }
