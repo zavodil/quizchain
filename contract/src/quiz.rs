@@ -637,6 +637,7 @@ impl QuizChain {
     #[payable]
     pub fn reveal_final_hash(&mut self, quiz_id: QuizId, hash: Hash) -> PromiseOrValue<bool> {
         assert_one_yocto();
+        assert_eq!(hash.chars().count(), 64, "Illegal hash length");
 
         if let Some(mut quiz) = self.quizzes.get(&quiz_id) {
             QuizChain::assert_current_user(&quiz.owner_id);
@@ -779,5 +780,24 @@ impl QuizChain {
         }
 
         question_options
+    }
+
+    #[private]
+    #[payable]
+    pub fn update_hash_for_finished_quiz_without_answers(&mut self, quiz_id: QuizId, hash: Hash) -> PromiseOrValue<bool>{
+        assert_one_yocto();
+        assert_eq!(hash.chars().count(), 64, "Illegal hash length");
+
+        if let Some(mut quiz) = self.quizzes.get(&quiz_id) {
+            assert_eq!(quiz.finality_type, QuizFinalityType::DelayedReveal, "Hash reveal is not supported");
+            assert!(quiz.revealed_answers.is_none(), "Quiz has answers");
+            assert_eq!(quiz.status, QuizStatus::Finished, "Quiz is not Finished");
+
+            quiz.success_hash = Some(hash);
+            self.quizzes.insert(&quiz_id, &quiz);
+            PromiseOrValue::Value(true)
+        } else {
+            PromiseOrValue::Value(false)
+        }
     }
 }
